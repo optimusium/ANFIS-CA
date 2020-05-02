@@ -48,6 +48,7 @@ class ANFIS:
         return l, yp
 
     def plotmfs(self, sess):
+        rule_stats={}
         mus = sess.run(self.params[0])
         mus = np.reshape(mus, (self.m, self.n))
         sigmas = sess.run(self.params[1])
@@ -55,14 +56,28 @@ class ANFIS:
         y = sess.run(self.params[2])
         xn = np.linspace(0, 1, 1000)
         for r in range(self.m):
+            rule_stats[r+1]={}
             if r % 4 == 0:
                 plt.figure(figsize=(11, 6), dpi=80)
             plt.subplot(2, 2, (r % 4) + 1)
             ax = plt.subplot(2, 2, (r % 4) + 1)
             ax.set_title("Rule %d, sequent center: %f" % ((r + 1), y[0, r]))
-            
+            print(np.sum(y))
+            rule_stats[r+1]["center"]=y[0, r] #/np.sum(y)
             for i in range(self.n):
+                rule_stats[r+1][i]={}
                 #plt.legend(loc="upper right")
+                low_bound=mus[r, i]-abs(sigmas[r, i])
+                if low_bound<0: low_bound=0
+                if low_bound>1: low_bound=1
+                high_bound=mus[r, i]+abs(sigmas[r, i])
+                if high_bound>1: high_bound=1
+                if high_bound<0: high_bound=0
+                rule_stats[r+1][i]["high_bound"]=high_bound
+                rule_stats[r+1][i]["low_bound"]=low_bound
+                
                 plt.plot(xn, np.exp(-0.5 * ((xn - mus[r, i]) ** 2) / (sigmas[r, i] ** 2)) ,"C%s" % i, label="%i" % i)
-                print("rule %s input %i: mu=%s" %(r,i,mus[r, i]))
+                print("rule %s input %i: mu=%s sigma=%s bound=[%s,%s]" %(r+1,i,mus[r, i],sigmas[r, i], low_bound, high_bound    ))
+                
+        return rule_stats
                 
