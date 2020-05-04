@@ -1,19 +1,30 @@
 import os,re
 import math,random
 
+
+#a seniority junior[0,0.11,0.22,0.33] medium [0.44,0.55,0.66] senior[0.77,0.88,1]
+#b purchase no_plan [0] P2[0.5] P3[1]
+#c company size small[<0.34] medium[<0.66] large [>0/66]
+#d contact  nothing[0] brochure[0.5] email[1]
+#e action nothing[0] doing[1]
+
 def eval1(a,b,c,d):
     e=0
     if 1:
+        
         if a<0.37 and b>0.75 and c>0.34 and d<0.75 and d>0.25:
             e=1
-        elif a>0.37 and a<0.7 and c>0.34 and d<0.75 and d>0.25:
+        elif a>0.37 and a<0.71 and c>0.34 and d<0.75 and d>0.25:
             e=1
-        elif a>0.37 and a<0.7 and b>0.75 and d<0.75 and d>0.25: # and (a<0.67 or c<0.67 or b<0.5):
+        elif a>0.37 and a<0.71 and b>0.75 and d<0.75 and d>0.25: # and (a<0.67 or c<0.67 or b<0.5):
             e=1
         elif a>0.7 and d<0.75 and d>0.25: # and (a<0.67 or c<0.67 or b<0.5):
             e=1
         else:
             e=0
+        
+        #if a<0.37 and b>0.75:
+        #    e=1
     #e=0
     return e
 

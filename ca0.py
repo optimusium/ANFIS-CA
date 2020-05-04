@@ -197,7 +197,7 @@ with tf.Session() as sess:
     
     plt.show()
 
-#raise
+raise
 
 # Action3
 Data=pd.read_csv("Data2.csv")

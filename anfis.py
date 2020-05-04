@@ -11,11 +11,11 @@ class ANFIS:
         self.inputs = tf.placeholder(tf.float32, shape=(None, n_inputs))  # Input
         self.targets = tf.placeholder(tf.float32, shape=None)  # Desired output
         mu = tf.get_variable("mu", [n_rules * n_inputs],
-                             initializer=tf.random_normal_initializer(0, 1))  # Means of Gaussian MFS
+                             initializer=tf.random_normal_initializer(0, 1), constraint=lambda t: tf.clip_by_value(t, 0.15, 0.85))  # Means of Gaussian MFS
         sigma = tf.get_variable("sigma", [n_rules * n_inputs],
-                                initializer=tf.random_normal_initializer(0, 1))  # Standard deviations of Gaussian MFS
-        y = tf.get_variable("y", [1, n_rules], initializer=tf.random_normal_initializer(0, 1))  # Sequent centers
-
+                                initializer=tf.random_normal_initializer(0, 1), constraint=lambda t: tf.clip_by_value(t, -0.33, 0.33))  # Standard deviations of Gaussian MFS
+        y = tf.get_variable("y", [1, n_rules], initializer=tf.random_normal_initializer(-1, 1), constraint=lambda t: tf.clip_by_value(t, -1, 1))  # Sequent centers
+        #y = tf.clip_by_value(y,-1,1)
         self.params = tf.trainable_variables()
 
         self.rul = tf.reduce_prod(
