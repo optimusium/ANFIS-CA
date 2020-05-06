@@ -55,7 +55,7 @@ chkLbls = lbls[lbls.size - round(lbls.size * 0.3):]
 '''
 # ANFIS params and Tensorflow graph initialization
 m = 8  # number of rules
-alpha = 0.0009  # learning rate
+alpha = 0.0008  # learning rate
 
 fis = ANFIS(n_inputs=D, n_rules=m, learning_rate=alpha)
 def model_summary():
@@ -68,7 +68,7 @@ model_summary()
 
 # Action2
 # Training
-num_epochs = 6000
+num_epochs = 10000
 
 # Initialize session to make computations on the Tensorflow graph
 while 1:
