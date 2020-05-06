@@ -54,7 +54,7 @@ chkData = data[lbls.size - round(lbls.size * 0.3):, :]
 chkLbls = lbls[lbls.size - round(lbls.size * 0.3):]
 '''
 # ANFIS params and Tensorflow graph initialization
-m = 16  # number of rules
+m = 8  # number of rules
 alpha = 0.0009  # learning rate
 
 fis = ANFIS(n_inputs=D, n_rules=m, learning_rate=alpha)
@@ -71,133 +71,230 @@ model_summary()
 num_epochs = 6000
 
 # Initialize session to make computations on the Tensorflow graph
-with tf.Session() as sess:
-    # Initialize model parameters
-    sess.run(fis.init_variables)
-    trn_costs = []
-    val_costs = []
-    time_start = time.time()
-    for epoch in range(num_epochs):
-        #  Run an update step
-        trn_loss, trn_pred = fis.train(sess, trnData, trnLbls)
-        # Evaluate on validation set
-        val_pred, val_loss = fis.infer(sess, chkData, chkLbls)
-        if epoch % 10 == 0:
-            print("Train cost after epoch %i: %f" % (epoch, trn_loss))
-        if epoch == num_epochs - 1:
-            time_end = time.time()
-            print("Elapsed time: %f" % (time_end - time_start))
-            print("Validation loss: %f" % val_loss)
-            # Plot real vs. predicted
-            pred = np.vstack((np.expand_dims(trn_pred, 1), np.expand_dims(val_pred, 1)))
-            plt.figure(1)
-            plt.plot(trn_pred-trnLbls)
-            print(trnLbls)
-            print(trnLbls.shape)
-            #plt.plot(trn_pred)
-            print(trn_pred.shape)
-        trn_costs.append(trn_loss)
-        val_costs.append(val_loss)
-    # Plot the cost over epochs
-    plt.figure(2)
-    plt.subplot(2, 1, 1)
-    plt.plot(np.squeeze(trn_costs))
-    plt.title("Training loss, Learning rate =" + str(alpha))
-    plt.subplot(2, 1, 2)
-    plt.plot(np.squeeze(val_costs))
-    plt.title("Validation loss, Learning rate =" + str(alpha))
-    plt.ylabel('Cost')
-    plt.xlabel('Epochs')
-    # Plot resulting membership functions
-    rule_stats=fis.plotmfs(sess)
-    inp_list=["Seniority ", "Propensity ","Size of Company ", "Contactibility "]
-    action="send brochure"
-    for r in rule_stats:
-        if abs(rule_stats[r]["center"])>0.05:
-            #print("rule %s" % r)
-            term="\nrule %s: IF(" % r
-            for inp in range(4):
-                hb= rule_stats[r][inp]["high_bound"]
-                lb= rule_stats[r][inp]["low_bound"]
-                significance=""
-                if lb>=1 or hb<=0: significance="is not related "
-                elif hb==1 and lb==0: significance="is in any value "
-                else:
-                    nothing=0
-                    if lb==0:
-                        nothing=1
-                    extreme=0
-                    if hb==1:
-                        extreme=1
-                    some_little=0
-                    if hb<0.34:
-                        some_little=1
-                    low=0
-                    if hb<0.49:
-                        low=1
-                    some_high=0
-                    if lb>0.66:
-                        some_high=1
-                    high=0
-                    if lb>0.51:
-                        high=1
-                    some_medium=0
-                    if lb>0.33 and lb<0.66:
-                        some_medium=1
-                    if hb>0.33 and hb<0.66:
-                        some_medium=1
+while 1:
+    with tf.Session() as sess:
+        # Initialize model parameters
+        sess.run(fis.init_variables)
+        trn_costs = []
+        val_costs = []
+        time_start = time.time()
+        for epoch in range(num_epochs):
+            #  Run an update step
+            trn_loss, trn_pred = fis.train(sess, trnData, trnLbls)
+            # Evaluate on validation set
+            val_pred, val_loss = fis.infer(sess, chkData, chkLbls)
+            if epoch % 10 == 0:
+                print("Train cost after epoch %i: %f" % (epoch, trn_loss))
+            if epoch == num_epochs - 1:
+                time_end = time.time()
+                print("Elapsed time: %f" % (time_end - time_start))
+                print("Validation loss: %f" % val_loss)
+                # Plot real vs. predicted
+                pred = np.vstack((np.expand_dims(trn_pred, 1), np.expand_dims(val_pred, 1)))
+                plt.figure(1)
+                plt.plot(trn_pred-trnLbls)
+                print(trnLbls)
+                print(trnLbls.shape)
+                #plt.plot(trn_pred)
+                print(trn_pred.shape)
+            trn_costs.append(trn_loss)
+            val_costs.append(val_loss)
 
-                    if nothing==1:
-                        if low==1:
-                            significance="is low "
-                        elif some_little==1:
-                            significance="is very low "
-                        elif hb>0.49:
-                            significance="is not extreme high "
-                        else:
-                            significance="is nothing "
-                    elif extreme==1:
-                        if high==1:
-                            significance="is high "
-                        elif some_high==1:
-                            significance="is very high "
-                        elif lb<0.51:
-                            significance="is not extremely low "
-                        else:
-                            significance="is extremely high "
-                    elif low==1 and some_little==1:
-                        significance="is low but not zero "
-                    elif low==1:
-                        significance="is medium low "
-                    elif some_little==1:
-                        significance="is very low but not zero "
-                    elif high==1 and some_high==1:
-                        significance="is high but not zero "
-                    elif high==1:
-                        significance="is medium high "
-                    elif some_high==1:
-                        significance="is quite high but not extermely high "
-                    elif lb>0.33 and lb<0.66 and hb<0.66:
-                        significance="is medium "
-                    elif lb>0.33 and lb<0.66 and hb<1:
-                        significance="is medium and high "
-                    elif hb>0.33 and hb<0.66 and lb>0.33:
-                        significance="is medium "
-                    elif hb>0.33 and hb<0.66 and lb>0:
-                        significance="is medium and low "
+        pas=0
+        if trn_loss>0.01:
+            continue
+        else:
+            pas=1
+        # Plot the cost over epochs
+        plt.figure(2)
+        plt.subplot(2, 1, 1)
+        plt.plot(np.squeeze(trn_costs))
+        plt.title("Training loss, Learning rate =" + str(alpha))
+        plt.subplot(2, 1, 2)
+        plt.plot(np.squeeze(val_costs))
+        plt.title("Validation loss, Learning rate =" + str(alpha))
+        plt.ylabel('Cost')
+        plt.xlabel('Epochs')
+        # Plot resulting membership functions
+        rule_stats=fis.plotmfs(sess)
+        inp_list=["Seniority ", "Propensity ","Size of Company ", "Contactibility "]
+        action="send brochure"
+        for r in rule_stats:
+            if abs(rule_stats[r]["center"])>0.05:
+                #print("rule %s" % r)
+                term="\nrule %s: IF(" % r
+                for inp in range(4):
+                    hb= rule_stats[r][inp]["high_bound"]
+                    lb= rule_stats[r][inp]["low_bound"]
+                    significance=""
+                    if lb>=1 or hb<=0: significance="is not related "
+                    elif hb==1 and lb==0: significance="is in any value "
 
-                term+=inp_list[inp]+significance+"AND "
-            term=term[:-4]
-            if rule_stats[r]["center"]>=0.5:
-                term+=") THEN " +action+" (%s)" % rule_stats[r]["center"]
-            else:
-                term+=") THEN " +action+" (%s)" % rule_stats[r]["center"]
-            print(term)
+                    elif inp==0:
+                        a=0
+                        if lb <0.33:
+                            a=1
+                            significance="is junior "
+                        b=0
+                        if lb<0.7 and hb>=0.33:
+                            b=1
+                            significance="is medium "
+                        c=0
+                        if hb>0.7:
+                            c=1
+                            significance="is senior "
+                            
+                        if a==1 and b==1:
+                            significance="is junior or medium "
+                        elif a==1 and c==1:
+                            significance="is junior or senior "
+                        elif b==1 and c==1:
+                            significance="is medium or senior "
+
+                    elif inp==2:
+                        a=0
+                        if lb <0.33:
+                            a=1
+                            significance="is small "
+                        b=0
+                        if lb<0.67 and hb>=0.33:
+                            b=1
+                            significance="is medium "
+                        c=0
+                        if hb>0.67:
+                            c=1
+                            significance="is large "
+                            
+                        if a==1 and b==1:
+                            significance="is small or medium "
+                        elif a==1 and c==1:
+                            significance="is small or large "
+                        elif b==1 and c==1:
+                            significance="is medium or large "
+
                     
-    
-    plt.show()
+                    elif inp==1:
+                        a=0
+                        if lb <=0 and hb>=0:
+                            a=1
+                            significance="is no plan "
+                        b=0
+                        if lb<1 and hb>=1:
+                            b=1
+                            significance="is in next 3 months "
+                        c=0
+                        if lb<=0.5 and hb>=0.5:
+                            c=1
+                            significance="is in next 12 months "
+                            
+                        if a==1 and b==1:
+                            significance="is no plan or is in next 3 months "
+                        elif a==1 and c==1:
+                            significance="is no plan or is in next 12 months "
+                        elif b==1 and c==1:
+                            significance="iis in next 3 months or 12 months "
+                            
+                    elif inp==3:
+                        a=0
+                        if lb <=0 and hb>=0:
+                            a=1
+                            significance="is no action "
+                        b=0
+                        if lb<1 and hb>=1:
+                            b=1
+                            significance="is prefer to send email/call "
+                        c=0
+                        if lb<=0.5 and hb>=0.5:
+                            c=1
+                            significance="is prefer to send brochure "
+                            
+                        if a==1 and c==1:
+                            significance="is no action or prefer to send brochure "
+                        elif a==1 and b==1:
+                            significance="is no action or prefer to send email/call "
+                        elif b==1 and c==1:
+                            significance="is prefer to send brochure/email/call "
+                            
+                                            
+                    else:
+                        nothing=0
+                        if lb==0:
+                            nothing=1
+                        extreme=0
+                        if hb==1:
+                            extreme=1
+                        some_little=0
+                        if hb<0.34:
+                            some_little=1
+                        low=0
+                        if hb<0.49:
+                            low=1
+                        some_high=0
+                        if lb>0.66:
+                            some_high=1
+                        high=0
+                        if lb>0.51:
+                            high=1
+                        some_medium=0
+                        if lb>0.33 and lb<0.66:
+                            some_medium=1
+                        if hb>0.33 and hb<0.66:
+                            some_medium=1
 
-raise
+                        if nothing==1:
+                            if low==1:
+                                significance="is low "
+                            elif some_little==1:
+                                significance="is very low "
+                            elif hb>0.49:
+                                significance="is not extreme high "
+                            else:
+                                significance="is nothing "
+                        elif extreme==1:
+                            if high==1:
+                                significance="is high "
+                            elif some_high==1:
+                                significance="is very high "
+                            elif lb<0.51:
+                                significance="is not extremely low "
+                            else:
+                                significance="is extremely high "
+                        elif low==1 and some_little==1:
+                            significance="is low but not zero "
+                        elif low==1:
+                            significance="is medium low "
+                        elif some_little==1:
+                            significance="is very low but not zero "
+                        elif high==1 and some_high==1:
+                            significance="is high but not zero "
+                        elif high==1:
+                            significance="is medium high "
+                        elif some_high==1:
+                            significance="is quite high but not extermely high "
+                        elif lb>0.33 and lb<0.66 and hb<0.66:
+                            significance="is medium "
+                        elif lb>0.33 and lb<0.66 and hb<1:
+                            significance="is medium and high "
+                        elif hb>0.33 and hb<0.66 and lb>0.33:
+                            significance="is medium "
+                        elif hb>0.33 and hb<0.66 and lb>0:
+                            significance="is medium and low "
+
+                    if significance!="":
+                        term+=inp_list[inp]+significance+"AND "
+                term=term[:-4]
+                if rule_stats[r]["center"]>=0.5:
+                    term+=") THEN " +action+" (%s)" % rule_stats[r]["center"]
+                else:
+                    term+=") THEN " +action+" (%s)" % rule_stats[r]["center"]
+                print(term)
+                        
+        
+        plt.show()
+        #print(trn_costs)
+        if pas==1: break
+
+#raise
 
 # Action3
 Data=pd.read_csv("Data2.csv")
@@ -215,131 +312,226 @@ chkLbls=chkLbls.to_numpy()
 # Training
 num_epochs = 6000
 
-# Initialize session to make computations on the Tensorflow graph
-with tf.Session() as sess:
-    # Initialize model parameters
-    sess.run(fis.init_variables)
-    trn_costs = []
-    val_costs = []
-    time_start = time.time()
-    for epoch in range(num_epochs):
-        #  Run an update step
-        trn_loss, trn_pred = fis.train(sess, trnData, trnLbls)
-        # Evaluate on validation set
-        val_pred, val_loss = fis.infer(sess, chkData, chkLbls)
-        if epoch % 10 == 0:
-            print("Train cost after epoch %i: %f" % (epoch, trn_loss))
-        if epoch == num_epochs - 1:
-            time_end = time.time()
-            print("Elapsed time: %f" % (time_end - time_start))
-            print("Validation loss: %f" % val_loss)
-            # Plot real vs. predicted
-            pred = np.vstack((np.expand_dims(trn_pred, 1), np.expand_dims(val_pred, 1)))
-            plt.figure(1)
-            plt.plot(trn_pred-trnLbls)
-            print(trnLbls)
-            print(trnLbls.shape)
-            #plt.plot(trn_pred)
-            print(trn_pred.shape)
-        trn_costs.append(trn_loss)
-        val_costs.append(val_loss)
-    # Plot the cost over epochs
-    plt.figure(2)
-    plt.subplot(2, 1, 1)
-    plt.plot(np.squeeze(trn_costs))
-    plt.title("Training loss, Learning rate =" + str(alpha))
-    plt.subplot(2, 1, 2)
-    plt.plot(np.squeeze(val_costs))
-    plt.title("Validation loss, Learning rate =" + str(alpha))
-    plt.ylabel('Cost')
-    plt.xlabel('Epochs')
-    # Plot resulting membership functions
-    fis.plotmfs(sess)
-    
-    plt.show()
+while 1:
+    # Initialize session to make computations on the Tensorflow graph
+    with tf.Session() as sess:
+        # Initialize model parameters
+        sess.run(fis.init_variables)
+        trn_costs = []
+        val_costs = []
+        time_start = time.time()
+        for epoch in range(num_epochs):
+            #  Run an update step
+            trn_loss, trn_pred = fis.train(sess, trnData, trnLbls)
+            # Evaluate on validation set
+            val_pred, val_loss = fis.infer(sess, chkData, chkLbls)
+            if epoch % 10 == 0:
+                print("Train cost after epoch %i: %f" % (epoch, trn_loss))
+            if epoch == num_epochs - 1:
+                time_end = time.time()
+                print("Elapsed time: %f" % (time_end - time_start))
+                print("Validation loss: %f" % val_loss)
+                # Plot real vs. predicted
+                pred = np.vstack((np.expand_dims(trn_pred, 1), np.expand_dims(val_pred, 1)))
+                plt.figure(1)
+                plt.plot(trn_pred-trnLbls)
+                print(trnLbls)
+                print(trnLbls.shape)
+                #plt.plot(trn_pred)
+                print(trn_pred.shape)
+            trn_costs.append(trn_loss)
+            val_costs.append(val_loss)
 
-    inp_list=["Seniority ", "Propensity ","Size of Company ", "Contactibility "]
-    action="send brochure"
-    for r in rule_stats:
-        if abs(rule_stats[r]["center"])>0.05:
-            #print("rule %s" % r)
-            term="\nrule %s: IF(" % r
-            for inp in range(4):
-                hb= rule_stats[r][inp]["high_bound"]
-                lb= rule_stats[r][inp]["low_bound"]
-                significance=""
-                if lb>=1 or hb<=0: significance="is not related "
-                elif hb==1 and lb==0: significance="is in any value "
-                else:
-                    nothing=0
-                    if lb==0:
-                        nothing=1
-                    extreme=0
-                    if hb==1:
-                        extreme=1
-                    some_little=0
-                    if hb<0.34:
-                        some_little=1
-                    low=0
-                    if hb<0.49:
-                        low=1
-                    some_high=0
-                    if lb>0.66:
-                        some_high=1
-                    high=0
-                    if lb>0.51:
-                        high=1
-                    some_medium=0
-                    if lb>0.33 and lb<0.66:
-                        some_medium=1
-                    if hb>0.33 and hb<0.66:
-                        some_medium=1
+        pas=0
+        if trn_loss>0.01:
+            continue
+        else:
+            pas=1
+        
+        # Plot the cost over epochs
+        plt.figure(2)
+        plt.subplot(2, 1, 1)
+        plt.plot(np.squeeze(trn_costs))
+        plt.title("Training loss, Learning rate =" + str(alpha))
+        plt.subplot(2, 1, 2)
+        plt.plot(np.squeeze(val_costs))
+        plt.title("Validation loss, Learning rate =" + str(alpha))
+        plt.ylabel('Cost')
+        plt.xlabel('Epochs')
+        # Plot resulting membership functions
+        fis.plotmfs(sess)
 
-                    if nothing==1:
-                        if low==1:
-                            significance="is low "
+        inp_list=["Seniority ", "Propensity ","Size of Company ", "Contactibility "]
+        action="send email/call"
+        for r in rule_stats:
+            if abs(rule_stats[r]["center"])>0.05:
+                #print("rule %s" % r)
+                term="\nrule %s: IF(" % r
+                for inp in range(4):
+                    hb= rule_stats[r][inp]["high_bound"]
+                    lb= rule_stats[r][inp]["low_bound"]
+                    significance=""
+                    if lb>=1 or hb<=0: significance="is not related "
+                    elif hb==1 and lb==0: significance="is in any value "
+                    elif inp==0:
+                        a=0
+                        if lb <0.33:
+                            a=1
+                            significance="is junior "
+                        b=0
+                        if lb<0.7 and hb>=0.33:
+                            b=1
+                            significance="is medium "
+                        c=0
+                        if hb>0.7:
+                            c=1
+                            significance="is senior "
+                            
+                        if a==1 and b==1:
+                            significance="is junior or medium "
+                        elif a==1 and c==1:
+                            significance="is junior or senior "
+                        elif b==1 and c==1:
+                            significance="is medium or senior "
+
+                    elif inp==2:
+                        a=0
+                        if lb <0.33:
+                            a=1
+                            significance="is small "
+                        b=0
+                        if lb<0.67 and hb>=0.33:
+                            b=1
+                            significance="is medium "
+                        c=0
+                        if hb>0.67:
+                            c=1
+                            significance="is large "
+                            
+                        if a==1 and b==1:
+                            significance="is small or medium "
+                        elif a==1 and c==1:
+                            significance="is small or large "
+                        elif b==1 and c==1:
+                            significance="is medium or large "
+
+                    
+                    elif inp==1:
+                        a=0
+                        if lb <=0 and hb>=0:
+                            a=1
+                            significance="is no plan "
+                        b=0
+                        if lb<1 and hb>=1:
+                            b=1
+                            significance="is in next 3 months "
+                        c=0
+                        if lb<=0.5 and hb>=0.5:
+                            c=1
+                            significance="is in next 12 months "
+                            
+                        if a==1 and b==1:
+                            significance="is no plan or is in next 3 months "
+                        elif a==1 and c==1:
+                            significance="is no plan or is in next 12 months "
+                        elif b==1 and c==1:
+                            significance="iis in next 3 months or 12 months "
+                            
+                    elif inp==3:
+                        a=0
+                        if lb <=0 and hb>=0:
+                            a=1
+                            significance="is no action "
+                        b=0
+                        if lb<1 and hb>=1:
+                            b=1
+                            significance="is prefer to send email/call "
+                        c=0
+                        if lb<=0.5 and hb>=0.5:
+                            c=1
+                            significance="is prefer to send brochure "
+                            
+                        if a==1 and c==1:
+                            significance="is no action or prefer to send brochure "
+                        elif a==1 and b==1:
+                            significance="is no action or prefer to send email/call "
+                        elif b==1 and c==1:
+                            significance="is prefer to send brochure/email/call "
+                            
+                    
+                    else:
+                        nothing=0
+                        if lb==0:
+                            nothing=1
+                        extreme=0
+                        if hb==1:
+                            extreme=1
+                        some_little=0
+                        if hb<0.34:
+                            some_little=1
+                        low=0
+                        if hb<0.49:
+                            low=1
+                        some_high=0
+                        if lb>0.66:
+                            some_high=1
+                        high=0
+                        if lb>0.51:
+                            high=1
+                        some_medium=0
+                        if lb>0.33 and lb<0.66:
+                            some_medium=1
+                        if hb>0.33 and hb<0.66:
+                            some_medium=1
+
+                        if nothing==1:
+                            if low==1:
+                                significance="is low "
+                            elif some_little==1:
+                                significance="is very low "
+                            elif hb>0.49:
+                                significance="is not extreme high "
+                            else:
+                                significance="is nothing "
+                        elif extreme==1:
+                            if high==1:
+                                significance="is high "
+                            elif some_high==1:
+                                significance="is very high "
+                            elif lb<0.51:
+                                significance="is not extremely low "
+                            else:
+                                significance="is extremely high "
+                        elif low==1 and some_little==1:
+                            significance="is low but not zero "
+                        elif low==1:
+                            significance="is medium low "
                         elif some_little==1:
-                            significance="is very low "
-                        elif hb>0.49:
-                            significance="is not extreme high "
-                        else:
-                            significance="is nothing "
-                    elif extreme==1:
-                        if high==1:
-                            significance="is high "
+                            significance="is very low but not zero "
+                        elif high==1 and some_high==1:
+                            significance="is high but not zero "
+                        elif high==1:
+                            significance="is medium high "
                         elif some_high==1:
-                            significance="is very high "
-                        elif lb<0.51:
-                            significance="is not extremely low "
-                        else:
-                            significance="is extremely high "
-                    elif low==1 and some_little==1:
-                        significance="is low but not zero "
-                    elif low==1:
-                        significance="is medium low "
-                    elif some_little==1:
-                        significance="is very low but not zero "
-                    elif high==1 and some_high==1:
-                        significance="is high but not zero "
-                    elif high==1:
-                        significance="is medium high "
-                    elif some_high==1:
-                        significance="is quite high but not extermely high "
-                    elif lb>0.33 and lb<0.66 and hb<0.66:
-                        significance="is medium "
-                    elif lb>0.33 and lb<0.66 and hb<1:
-                        significance="is medium and high "
-                    elif hb>0.33 and hb<0.66 and lb>0.33:
-                        significance="is medium "
-                    elif hb>0.33 and hb<0.66 and lb>0:
-                        significance="is medium and low "
+                            significance="is quite high but not extermely high "
+                        elif lb>0.33 and lb<0.66 and hb<0.66:
+                            significance="is medium "
+                        elif lb>0.33 and lb<0.66 and hb<1:
+                            significance="is medium and high "
+                        elif hb>0.33 and hb<0.66 and lb>0.33:
+                            significance="is medium "
+                        elif hb>0.33 and hb<0.66 and lb>0:
+                            significance="is medium and low "
 
-                term+=inp_list[inp]+significance+"AND "
-            term=term[:-4]
-            if rule_stats[r]["center"]>=0.5:
-                term+=") THEN " +action+" (%s)" % rule_stats[r]["center"]
-            else:
-                term+=") THEN "+action+" (%s)" % rule_stats[r]["center"]
-            print(term)
-                        
+                    if significance!="":
+                        term+=inp_list[inp]+significance+"AND "
+                term=term[:-4]
+                if rule_stats[r]["center"]>=0.5:
+                    term+=") THEN " +action+" (%s)" % rule_stats[r]["center"]
+                else:
+                    term+=") THEN "+action+" (%s)" % rule_stats[r]["center"]
+                print(term)
     
+        plt.show()
+        #print(trn_costs)
+        if pas==1: break
