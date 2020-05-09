@@ -1,0 +1,6 @@
+anfis.py defines the anfis class, set all the trainable parameters of the Gaussian MFS for both inputs' & output's fuzzy labels, create the 5 layers of the ANFIS model & the 1 layer to get the output's fuzzy labels, define the functions of train, infer, & plot.
+ca0.py is the application of anfis.py to the inputs of Seniority, Purchase_Propensity, Company_Size, & Contactable to the output of Actions.
+The results are:
+1. the Gaussian MFS parameters for inputs' fuzzy lables, output's fuzzy labels, & coefficients of inputs & bias in the first-order Sugeno model 
+2. plots of a) accuracy, b) losses, c) inputs' Gaussian MFS, & d) output's Gaussian MFS
+Packages needed is in requirements.txt
