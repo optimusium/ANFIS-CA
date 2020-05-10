@@ -70,28 +70,32 @@ def trainingNplotting(fis=None, trn=None, trnLbls=None, chk=None,
             trn_pred, trn_loss, trn_P, trn_C, trn_E, trn_sugeno = fis.train(sess, trn, trnLbls, bias)
             val_pred, val_loss, val_P, val_C, val_E, val_sugeno = fis.infer(sess, chk, chkLbls, bias)
             if epoch % 100 == 0:
-                print("Training loss after epoch %i: %f" % (epoch, trn_loss))
+                print("Training loss after epoch %i: %f" % (epoch, np.mean(trn_loss)))
             if epoch == num_epochs - 1:
                 time_end = time.time()
                 print("\n" + "Elapsed time: %f" % (time_end - time_start))
-                print("Validation loss: %f" % val_loss)
+                print("Validation loss: %f" % np.mean(val_loss))
             trn_costs.append(trn_loss)
             val_costs.append(val_loss)
-            trn_predList.append(trn_pred)
-            val_predList.append(val_pred)
+            trn_predList.append(np.mean(np.square(
+                np.squeeze(trn_pred) - trnLbls
+                                )))
+            val_predList.append(np.mean(np.square(
+                np.squeeze(val_pred) - chkLbls
+                                )))
             
             # Plot the accuracy
             plt.figure(1)
             plt.tight_layout(pad=1.0)
             plt.subplot(2, 1, 1)
             plt.plot(trn_predList)
-            plt.title("Training accuracy")
-            plt.ylabel("Accuracy(%)")
+            plt.title("Training MSE")
+            plt.ylabel("MSE")
             plt.xlabel("Epochs")
             plt.subplot(2, 1, 2)
             plt.plot(val_predList)
-            plt.title("Validation accuracy")
-            plt.ylabel("Accuracy(%)")
+            plt.title("Validation MSE")
+            plt.ylabel("MSE")
             plt.xlabel("Epochs")
 
         # Plot the losses over epochs
@@ -117,12 +121,12 @@ def trainingNplotting(fis=None, trn=None, trnLbls=None, chk=None,
         
         # Print the Premise Parameters of all inputs' linguistic labels
         premiseParams = pd.DataFrame(np.reshape(list(trn_P.values()), (12, 2)), 
-                                     columns=['mu', 'sigma'],
-                                     index=[
-                                             "Junior", "Mid", "Senior",
-                                             "No_plan", "3_yrs", "12_mths",
-                                             "Small", "Medium", "Big",
-                                             "Don't_contact", "Only_content", "Can email/call"                                   
+                                      columns=['mu', 'sigma'],
+                                      index=[
+                                              "Junior", "Mid", "Senior",
+                                              "No_plan", "3_yrs", "12_mths",
+                                              "Small", "Medium", "Big",
+                                              "Don't_contact", "Only_content", "Can email/call"                                   
                                             ])
         print("\n" + "Premise Parameters of All 12 Inputs' Linguistic Lables" + "\n", premiseParams)
         
@@ -135,16 +139,16 @@ def trainingNplotting(fis=None, trn=None, trnLbls=None, chk=None,
         # Print the first-order Sugeno model's coefficients for all 81 rules
         coeffParams = pd.DataFrame(np.reshape(list(trn_C.values()), (81, 5)),
                                         columns=["Seniority", "Purchase_Propensity",
-                                                 "Company_Size", "Contactable", "Bias"])
+                                                  "Company_Size", "Contactable", "Bias"])
         print("\n" + "Coefficients of All 81 Rules" + "\n", coeffParams)
             
     return trn_pred, trn_loss, trn_P, trn_C, trn_E, trn_sugeno, val_pred, val_loss, val_P, val_C, val_E, val_sugeno
 
 # ANFIS params and Tensorflow graph initialization
 n = 4  # number of inputs
-f = 3 # number of linguistic labels per input variable
+f = 2 # number of linguistic labels per input variable
 m = f ** n  # number of rules = 81
-alpha = 0.0009  # learning rate
+alpha = 0.0007  # learning rate
 tf.reset_default_graph()
 fis = ANFIS(n_inputs=n, n_rules=m, n_fuzzy=f, learning_rate=alpha)
 

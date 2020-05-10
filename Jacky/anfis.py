@@ -30,13 +30,32 @@ class ANFIS:
         EACH OF THE 4 INPUT HAS 3 FUZZY LINGUISTIC LABELS & EACH GAUSSIAN MEMBERSHIP FUNCTION HAS 2 PARAMETERS
         THEREFORE, THERE ARE 12 MEANS OF GAUSSIAN MFS & 12 SDs OF GAUSSIAN MFS 
         """
+        # self.P = {}
+        # for i in range(self.n):
+        #     for j in range(self.f):
+        #         for k in ["mu", "sigma"]:
+        #             self.P["{}F{}_{}".format(k, i, j)] = tf.get_variable("{}F{}_{}".format(k, i, j), [1],
+        #                                                     initializer=tf.random_uniform_initializer(0, 1),
+        #                                                     regularizer = tf.contrib.layers.l2_regularizer(scale=0.1),
+        #                                                     dtype=tf.float32)
+        
         self.P = {}
         for i in range(self.n):
             for j in range(self.f):
                 for k in ["mu", "sigma"]:
-                    self.P["{}F{}_{}".format(k, i, j)] = tf.get_variable("{}F{}_{}".format(k, i, j), [1],
-                                                            initializer=tf.random_uniform_initializer(0, 1),
-                                                            dtype=tf.float32)
+                    if k == "mu":
+                        init_mean=0.1
+                        if j==1: init_mean=0.5
+                        if j==2: init_mean=0.9
+                        self.P["{}F{}_{}".format(k, i, j)] = tf.get_variable("{}F{}_{}".format(k, i, j), [1],
+                                                                initializer=tf.random_uniform_initializer(init_mean-0.1, init_mean+0.1), constraint=lambda t: tf.clip_by_value(t, 0.001, 0.999),
+                                                                dtype=tf.float32, regularizer = tf.contrib.layers.l2_regularizer(scale=0.1))
+                    else:
+                        self.P["{}F{}_{}".format(k, i, j)] = tf.get_variable("{}F{}_{}".format(k, i, j), [1],
+                                                                initializer=tf.random_uniform_initializer(-1, 1), constraint=lambda t: tf.clip_by_value(t, -0.33, 0.33), 
+                                                                dtype=tf.float32, regularizer = tf.contrib.layers.l2_regularizer(scale=0.1))
+
+        
         
         """
         FIRST-ORDER SUGENO FUZZY MODEL - TRAINABLE CONSEQUENT PARAMETERS
@@ -53,6 +72,7 @@ class ANFIS:
             for j in range(self.m):
                 self.C["coeff_{}_{}".format(i, j)] = tf.get_variable("coeff_{}_{}".format(i, j), [1],
                                                         initializer=tf.random_uniform_initializer(0, 1),
+                                                        regularizer = tf.contrib.layers.l2_regularizer(scale=0.1),
                                                         dtype=tf.float32)
             
         """
@@ -62,10 +82,11 @@ class ANFIS:
         THEREFORE, THERE ARE 3 MEANS OF GAUSSIAN MFS & 3 SDs OF GAUSSIAN MFS 
         """
         self.E = {}
-        for j in range(self.f):
+        for j in range(3):
             for k in ["mu", "sigma"]:
                 self.E["{}F5_{}".format(k, j)] = tf.get_variable("{}F5_{}".format(k, j), [1],
                                                     initializer=tf.random_uniform_initializer(0, 1),
+                                                    regularizer = tf.contrib.layers.l2_regularizer(scale=0.1),
                                                     dtype=tf.float32)
 
         self.params = tf.trainable_variables()
@@ -95,11 +116,24 @@ class ANFIS:
             for j in range(self.f):
                 # Each input sample will have 12 µ generated for each of the 12 linguistic labels
                 # i.e., 12 tensors of shape=(?, 1) & dtype=float32       
-                self.M["self.mem_{}_{}".format(i, j)] = tf.exp(-0.5 * 
+                self.M["self.mem_{}_{}".format(i, j)] = tf.nn.relu(tf.exp(-0.5 * 
                                                         tf.square(
                                                         tf.subtract(F["fuzzyInput{}".format(i)], 
                                                         self.P["muF{}_{}".format(i, j)])) /
-                                                        tf.square(self.P["sigmaF{}_{}".format(i, j)]))
+                                                        tf.square(self.P["sigmaF{}_{}".format(i, j)])))
+                
+        # self.M = {}
+        # for i in range(self.n):
+        #     for j in range(self.f):
+        #         # Each input sample will have 12 µ generated for each of the 12 linguistic labels
+        #         # i.e., 12 tensors of shape=(?, 1) & dtype=float32       
+        #         self.M["self.mem_{}_{}".format(i, j)] = tf.exp(
+        #                                                 tf.scalar_mul(-0.5,
+        #                                                 tf.divide(
+        #                                                 tf.square(
+        #                                                 tf.subtract(F["fuzzyInput{}".format(i)], 
+        #                                                 self.P["muF{}_{}".format(i, j)])),
+        #                                                 tf.square(self.P["sigmaF{}_{}".format(i, j)]))))   
                 
         """
         ANFIS LAYER 2 - OBTAINING THE FIRING STRENGTH OF RULES
@@ -122,22 +156,37 @@ class ANFIS:
         self.S = tf.concat(list(self.s.values()), axis=2)
         # Each input sample will have 81 µ that has the lowest value for their respective rule
         # i.e., self.smallest is a tensor of shape=(?, 81) & dtype=float32
-        self.smallest = tf.reduce_min(self.S, axis=0)
+        # self.smallest = tf.nn.relu(tf.reduce_min(self.S, axis=0))
+        self.prod = tf.reduce_prod(self.S, axis=0)
    
         """
         ANFIS LAYER 3 - NORMALIZING THE FIRING STRENGTH OF RULES
         NORMALIZE THE 81 µ FOR EACH SAMPLE INPUT BY DIVIDING EACH µ BY THEIR SUMMATION
         """
         # self.summed is a tensor of shape=(?, 1) & dtype=float32
-        self.summed = tf.reduce_sum(self.smallest, axis=1, keepdims=True)
+        self.summed = tf.reduce_sum(self.prod, axis=1, keepdims=True)
         # self.normed is a tensor of shape(?, 81) & dtype=float32
-        self.normed = tf.divide(self.smallest, self.summed)
+        self.normed = tf.divide(self.prod, self.summed)
                 
         """
         ANFIS LAYER 4 - MULTIPYING NORMED FIRING STRENGTH BY FIRST-ORDER SUGENO FUZZY MODEL
         """
         # self.Z is a tensor of shape(?, 81) & dtype=float32
-        self.Z = tf.multiply(self.normed, tf.add_n([        
+        # self.Z = tf.multiply(self.normed, tf.add_n([        
+        #                                             tf.scalar_mul(tf.squeeze(self.C["coeff_0_{}".format(i)]), 
+        #                                                           self.fuzzyInput0),
+        #                                             tf.scalar_mul(tf.squeeze(self.C["coeff_1_{}".format(i)]), 
+        #                                                           self.fuzzyInput1),
+        #                                             tf.scalar_mul(tf.squeeze(self.C["coeff_2_{}".format(i)]), 
+        #                                                           self.fuzzyInput2),
+        #                                             tf.scalar_mul(tf.squeeze(self.C["coeff_3_{}".format(i)]), 
+        #                                                           self.fuzzyInput3),
+        #                                             tf.scalar_mul(tf.squeeze(self.C["coeff_4_{}".format(i)]), 
+        #                                                           self.bias)   
+        #                                             ])
+        #                     )
+        
+        self.Z = tf.nn.relu(tf.multiply(self.normed, tf.add_n([        
                                                     tf.scalar_mul(tf.squeeze(self.C["coeff_0_{}".format(i)]), 
                                                                   self.fuzzyInput0),
                                                     tf.scalar_mul(tf.squeeze(self.C["coeff_1_{}".format(i)]), 
@@ -149,14 +198,17 @@ class ANFIS:
                                                     tf.scalar_mul(tf.squeeze(self.C["coeff_4_{}".format(i)]), 
                                                                   self.bias)   
                                                     ])
-                            )
+                            ))
         
         """
         ANFIS LAYER 5 - COMPUTES THE OVERALL OUTPUT FOR EACH SAMPLE INPUT (i.e., OUTPUT OF THE SUGENO MODEL)
         EACH SAMPLE INPUT'S OVERALL OUTPUT IS THE SUMMATION OF ITS 81 OUTPUTS CALCULATED FROM ANFIS LAYER 4 
         """
         # self.SUGENO is a tensor of shape(?, 1) & dtype=float32
-        self.SUGENO = tf.reduce_sum(self.Z, axis=1, keepdims=True)
+        self.SUGENO =tf.reduce_sum(self.Z, axis=1, keepdims=True)
+        
+        # self.wf = tf.reduce_sum(self.Z, axis=1, keepdims=True)
+        # self.SUGENO = tf.nn.relu(tf.divide(self.wf, self.summed))
             
         """
         ANFIS LAYER 6 - FUZZIFICATION OF OUTPUT VARIABLES (i.e., EXTENDING ANFIS TO THE MAMDANI MODEL)
@@ -177,28 +229,39 @@ class ANFIS:
                                                         tf.square(self.E["sigmaF5_{}".format(i)]))
         
         # Loss function
-        self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
-                                                        labels=tf.squeeze(self.targets), 
-                                                        logits=tf.concat(list(self.MAMDANI.values()),
-                                                        axis=1),
-                                                        name="losses"))
+        # self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
+        #                                                 labels=tf.squeeze(self.targets), 
+        #                                                 logits=tf.concat(list(self.MAMDANI.values()),
+        #                                                 axis=1),
+        #                                                 name="losses"))
+
+        self.shannon = tf.reduce_mean(tf.reduce_sum(tf.multiply(tf.scalar_mul(-1, self.normed), tf.log(self.normed)), axis=1))
+
+        # self.loss = tf.compat.v1.losses.huber_loss(
+        #     labels=tf.squeeze(self.targets), predictions=self.SUGENO, weights=1.0, delta=1.0, scope=None,
+        #     loss_collection=tf.GraphKeys.LOSSES, reduction=tf.losses.Reduction.NONE
+        #     )
+
+        self.loss = tf.compat.v1.losses.huber_loss(
+            labels=tf.squeeze(self.targets), predictions=self.SUGENO, weights=1.0, delta=1.0, scope=None,
+            loss_collection=tf.GraphKeys.LOSSES
+            )
+        
+        # self.loss = tf.add_n([tf.compat.v1.losses.huber_loss(
+        #     labels=tf.squeeze(self.targets), predictions=self.SUGENO, weights=1.0, delta=1.0, scope=None,
+        #     loss_collection=tf.GraphKeys.LOSSES
+        #     ), self.shannon])
 
         # Optimizer
-        """
-        'optimizer': ['rmsprop', 'sgd', 'adagrad',
-                      'adadelta', 'adamax', 'nadam']
-        tried: 'adam'
-        ADD 'activation': ['relu', 'elu', 'tanh', 'sigmoid']
-        """
         self.optimize = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(self.loss)
 
         # Variable initializer
         self.init_variables = tf.global_variables_initializer()  
 
     def train(self, sess, trn, targets, bias):
-        trn_pred, trn_loss, _, trn_P, trn_C, trn_E, trn_sugeno = sess.run([self.MAMDANI, self.loss, 
+        trn_pred, trn_loss, _, trn_P, trn_C, trn_E, trn_sugeno = sess.run([self.SUGENO, self.loss, 
                                                                            self.optimize, self.P, 
-                                                                           self.C, self.E, self.SUGENO], 
+                                                                           self.C, self.E, self.shannon], 
                                          feed_dict={
                                                    self.fuzzyInput0: 
                                                    np.reshape(trn["trnDataF0"], (len(trn["trnDataF0"]), 1)),
@@ -214,15 +277,15 @@ class ANFIS:
                                                    np.reshape(targets, (len(targets), 1))
                                                    })
         
-        df_trn_pred = pd.DataFrame(zip(list(trn_pred.values())[0], list(trn_pred.values())[1], 
-                                      list(trn_pred.values())[2]), dtype="float")
-        df_trn_pred = df_trn_pred.idxmax(axis = 1)
-        trn_match = []
-        for i in range(len(targets)):
-            trn_match.append(df_trn_pred[i] == targets[i])
-        trn_pred = sum(trn_match) / len(trn_match)
+        # df_trn_pred = pd.DataFrame(zip(list(trn_pred.values())[0], list(trn_pred.values())[1], 
+        #                               list(trn_pred.values())[2]), dtype="float")
+        # df_trn_pred = df_trn_pred.idxmax(axis = 1)
+        # trn_match = []
+        # for i in range(len(targets)):
+        #     trn_match.append(df_trn_pred[i] == targets[i])
+        # trn_pred = sum(trn_match) / len(trn_match)
                 
-        return trn_pred, np.mean(trn_loss), trn_P, trn_C, trn_E, trn_sugeno
+        return trn_pred, trn_loss, trn_P, trn_C, trn_E, trn_sugeno
 
     def infer(self, sess, chk, targets, bias):
         if targets is None:
@@ -233,7 +296,7 @@ class ANFIS:
                                                 self.fuzzyInput3: chk["chkDataF3"]
                                                  })
         else:
-            chk_pred, chk_loss, chk_P, chk_C, chk_E, chk_sugeno = sess.run([self.MAMDANI, self.loss, 
+            chk_pred, chk_loss, chk_P, chk_C, chk_E, chk_sugeno = sess.run([self.SUGENO, self.loss, 
                                                                             self.P, self.C, 
                                                                             self.E, self.SUGENO], 
                                                 feed_dict={
@@ -251,13 +314,13 @@ class ANFIS:
                                                    np.reshape(targets, (len(targets), 1))
                                                             })
             
-            df_chk_pred = pd.DataFrame(zip(list(chk_pred.values())[0], list(chk_pred.values())[1], 
-                                      list(chk_pred.values())[2]), dtype="float")
-            df_chk_pred = df_chk_pred.idxmax(axis = 1)
-            chk_match = []
-            for i in range(len(targets)):
-                chk_match.append(df_chk_pred[i] == targets[i])
-            chk_pred = sum(chk_match) / len(chk_match)
+            # df_chk_pred = pd.DataFrame(zip(list(chk_pred.values())[0], list(chk_pred.values())[1], 
+            #                           list(chk_pred.values())[2]), dtype="float")
+            # df_chk_pred = df_chk_pred.idxmax(axis = 1)
+            # chk_match = []
+            # for i in range(len(targets)):
+            #     chk_match.append(df_chk_pred[i] == targets[i])
+            # chk_pred = sum(chk_match) / len(chk_match)
             
             return chk_pred, np.mean(chk_loss), chk_P, chk_C, chk_E, chk_sugeno
     
