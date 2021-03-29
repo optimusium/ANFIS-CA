@@ -72,7 +72,7 @@ pycodestyle==2.5.0
 pycparser==2.20
 pydocstyle==5.0.2
 pyflakes==2.1.1
-Pygments==2.6.1
+Pygments==2.7.4
 pylint @ file:///Users/runner/miniforge3/conda-bld/pylint_1588623828803/work
 pyOpenSSL==19.1.0
 pyparsing==2.4.7
